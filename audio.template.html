@@ -1,0 +1,17 @@
+<audio #audioplayer
+       [src]="src"
+       [autoplay]="autoplay"
+       [controls]="controls"
+       [volume]="volume"
+       [loop]="loop"
+       [preload]="preload"
+       [muted]="muted"
+>
+
+</audio>
+<button type="button" (click)="play()">Play</button>
+<button type="button" (click)="pause()">PAuse</button>
+<button type="button" (click)="status()">Status</button>
+<button type="button" (click)="previousTrack()">Previous</button>
+<button type="button" (click)="nextTrack()">Next</button>
+<button type="button" (click)="muteVideo()">Mute</button>
