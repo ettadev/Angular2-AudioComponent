@@ -1,4 +1,4 @@
-import {Component, Input, Output, EventEmitter, ViewChild, AfterViewInit} from '@angular/core';
+import {Component, Input, Output, EventEmitter, ViewChild, AfterViewInit, OnInit} from '@angular/core';
 import {NgIf} from '@angular/common';
 
 @Component({
@@ -8,12 +8,19 @@ import {NgIf} from '@angular/common';
     directives: [NgIf]
 })
 
-export class AudioComponent implements AfterViewInit{
+export class AudioComponent implements AfterViewInit, OnInit{
 
+    private list: string;
     /**
      * @Input -> custom properties.
      *
      */
+
+    /** Programmatically buttons. */
+    @Input() playButton: boolean = false;
+    @Input() pauseButton: boolean = false;
+    @Input() selectableButton: boolean = false;
+    @Input() muteButton: boolean = false;
     /** Array of audio tracks.*/
     @Input() src: Array<string>;
     /** Display or not the controls, default: true */
@@ -31,7 +38,9 @@ export class AudioComponent implements AfterViewInit{
     /** Interval in order to set the audio transition, in ms, default: 500ms. */
     @Input() intervalTransition = 500;
     /** Define if transition, default: false. */
-    @Input() transition: boolean = false;
+    @Input() transitionEnd: boolean = true;
+    /** Define the preload status, default metadata. */
+    @Input() transitionStart: boolean = false;
     /** Define the preload status, default metadata. */
     @Input() preload: string = 'metadata';
     /** Define the mute status, default false. */
@@ -51,8 +60,14 @@ export class AudioComponent implements AfterViewInit{
 
     @ViewChild('audioplayer') player: Audioplayer;
 
+    ngOnInit() {
+        /** Init player with the first occurrence of src's array. */
+        this.list = this.src[0]
+    }
+
     ngAfterViewInit() {
-        if (this.transition)
+
+        if (this.transitionEnd)
             this.player.nativeElement.addEventListener('play', () => this.audioTransition(this.player.nativeElement.duration, this.player.nativeElement.currentTime));
 
         this.player.nativeElement.addEventListener('ended', () => {
@@ -73,7 +88,12 @@ export class AudioComponent implements AfterViewInit{
 
         });
 
-        this.player.nativeElement.addEventListener('loadstart', () => this.emitCurrentTrack());
+        this.player.nativeElement.addEventListener('loadstart', () => {
+            this.emitCurrentTrack();
+
+            if (this.transitionStart)
+                this.audioStartTransition(this.intervalTransition);
+        });
 
         this.player.nativeElement.addEventListener('pause', () => {
             /** Reset Timeout && Interval. */
@@ -95,6 +115,7 @@ export class AudioComponent implements AfterViewInit{
     muteVideo() {
         this.player.nativeElement.muted = !this.player.nativeElement.muted;
     }
+
     previousTrack() {
         /** If first track, then do nothing. */
         if (this.src.indexOf(this.player.nativeElement.src) <= 0)
@@ -121,13 +142,33 @@ export class AudioComponent implements AfterViewInit{
         this.timeout = this.setTimeoutDelay(trackDuration, timeElapsed);
     }
 
+    audioStartTransition(interval: number) {
+        /** Start the transition. */
+        this.startTransition = this.setIncrementInterval(interval);
+    }
+
     setTimeoutDelay(trackDuration: number, timeElapsed: number) {
+        /** Timeout who correspond to the remaining time of audio player without the transition's time ( by default 5s before the end). */
         return setTimeout(() => {
-            this.interval = this.setTransitionInterval(this.intervalTransition);
+            this.interval = this.setDecrementInterval(this.intervalTransition);
         }, (trackDuration - timeElapsed) * 1000 - (this.transition * 1000));
     }
-    setTransitionInterval(interval: number) {
+
+    setIncrementInterval(interval: number) {
         return setInterval(() => {
+            /** Define the new player's volume. Increment by step of 10%.*/
+            this.player.nativeElement.volume  += (this.player.nativeElement.volume * 10) / 100;
+            /** Security area in order to avoid error. If the player's volume is around 90%, then stop incrment, set the volume to 1. */
+            if (this.player.nativeElement.volume >= 0.9) {
+                this.player.nativeElement.volume = 1;
+                window.clearInterval(this.startTransition);
+            }
+        }, interval);
+    }
+
+    setDecrementInterval(interval: number) {
+        return setInterval(() => {
+            /** Decrement the volume by step of 10%. */
             this.player.nativeElement.volume  -= (this.player.nativeElement.volume * 10) / 100;
         }, interval);
     }
@@ -138,6 +179,7 @@ export class AudioComponent implements AfterViewInit{
     emitPlayList(){
         this.playlist.emit(this.src);
     }
+
     emitCurrentTrack(): Object{
         /**
          * Return an object who will contain: Url of the track, duration, textTrack, volume)

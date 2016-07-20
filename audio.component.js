@@ -12,6 +12,15 @@ var core_1 = require('@angular/core');
 var common_1 = require('@angular/common');
 var AudioComponent = (function () {
     function AudioComponent() {
+        /**
+         * @Input -> custom properties.
+         *
+         */
+        /** Programmatically buttons. */
+        this.playButton = false;
+        this.pauseButton = false;
+        this.selectableButton = false;
+        this.muteButton = false;
         /** Display or not the controls, default: true */
         this.controls = true;
         /** Set autoplay status, default true. */
@@ -27,7 +36,9 @@ var AudioComponent = (function () {
         /** Interval in order to set the audio transition, in ms, default: 500ms. */
         this.intervalTransition = 500;
         /** Define if transition, default: false. */
-        this.transition = false;
+        this.transitionEnd = true;
+        /** Define the preload status, default metadata. */
+        this.transitionStart = false;
         /** Define the preload status, default metadata. */
         this.preload = 'metadata';
         /** Define the mute status, default false. */
@@ -45,9 +56,13 @@ var AudioComponent = (function () {
         /** Emit downloading status of track. */
         this.downloading = new core_1.EventEmitter();
     }
+    AudioComponent.prototype.ngOnInit = function () {
+        /** Init player with the first occurrence of src's array. */
+        this.list = this.src[0];
+    };
     AudioComponent.prototype.ngAfterViewInit = function () {
         var _this = this;
-        if (this.transition)
+        if (this.transitionEnd)
             this.player.nativeElement.addEventListener('play', function () { return _this.audioTransition(_this.player.nativeElement.duration, _this.player.nativeElement.currentTime); });
         this.player.nativeElement.addEventListener('ended', function () {
             _this.player.nativeElement.volume = _this.volume;
@@ -63,7 +78,11 @@ var AudioComponent = (function () {
             _this.player.nativeElement.src = _this.src[_this.startPosition];
             /** If onChangeTrack is set, then emit the new track. */
         });
-        this.player.nativeElement.addEventListener('loadstart', function () { return _this.emitCurrentTrack(); });
+        this.player.nativeElement.addEventListener('loadstart', function () {
+            _this.emitCurrentTrack();
+            if (_this.transitionStart)
+                _this.audioStartTransition(_this.intervalTransition);
+        });
         this.player.nativeElement.addEventListener('pause', function () {
             /** Reset Timeout && Interval. */
             window.clearTimeout(_this.timeout);
@@ -104,15 +123,33 @@ var AudioComponent = (function () {
         /** Check the currentTime elapsed, then set transition if defined. */
         this.timeout = this.setTimeoutDelay(trackDuration, timeElapsed);
     };
+    AudioComponent.prototype.audioStartTransition = function (interval) {
+        /** Start the transition. */
+        this.startTransition = this.setIncrementInterval(interval);
+    };
     AudioComponent.prototype.setTimeoutDelay = function (trackDuration, timeElapsed) {
         var _this = this;
+        /** Timeout who correspond to the remaining time of audio player without the transition's time ( by default 5s before the end). */
         return setTimeout(function () {
-            _this.interval = _this.setTransitionInterval(_this.intervalTransition);
+            _this.interval = _this.setDecrementInterval(_this.intervalTransition);
         }, (trackDuration - timeElapsed) * 1000 - (this.transition * 1000));
     };
-    AudioComponent.prototype.setTransitionInterval = function (interval) {
+    AudioComponent.prototype.setIncrementInterval = function (interval) {
         var _this = this;
         return setInterval(function () {
+            /** Define the new player's volume. Increment by step of 10%.*/
+            _this.player.nativeElement.volume += (_this.player.nativeElement.volume * 10) / 100;
+            /** Security area in order to avoid error. If the player's volume is around 90%, then stop incrment, set the volume to 1. */
+            if (_this.player.nativeElement.volume >= 0.9) {
+                _this.player.nativeElement.volume = 1;
+                window.clearInterval(_this.startTransition);
+            }
+        }, interval);
+    };
+    AudioComponent.prototype.setDecrementInterval = function (interval) {
+        var _this = this;
+        return setInterval(function () {
+            /** Decrement the volume by step of 10%. */
             _this.player.nativeElement.volume -= (_this.player.nativeElement.volume * 10) / 100;
         }, interval);
     };
@@ -132,6 +169,22 @@ var AudioComponent = (function () {
             volume: this.player.nativeElement.volume
         });
     };
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', Boolean)
+    ], AudioComponent.prototype, "playButton", void 0);
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', Boolean)
+    ], AudioComponent.prototype, "pauseButton", void 0);
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', Boolean)
+    ], AudioComponent.prototype, "selectableButton", void 0);
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', Boolean)
+    ], AudioComponent.prototype, "muteButton", void 0);
     __decorate([
         core_1.Input(), 
         __metadata('design:type', Array)
@@ -167,7 +220,11 @@ var AudioComponent = (function () {
     __decorate([
         core_1.Input(), 
         __metadata('design:type', Boolean)
-    ], AudioComponent.prototype, "transition", void 0);
+    ], AudioComponent.prototype, "transitionEnd", void 0);
+    __decorate([
+        core_1.Input(), 
+        __metadata('design:type', Boolean)
+    ], AudioComponent.prototype, "transitionStart", void 0);
     __decorate([
         core_1.Input(), 
         __metadata('design:type', String)
