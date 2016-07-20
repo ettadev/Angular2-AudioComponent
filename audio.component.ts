@@ -62,7 +62,7 @@ export class AudioComponent implements AfterViewInit, OnInit{
 
     ngOnInit() {
         /** Init player with the first occurrence of src's array. */
-        this.list = this.src[0]
+        this.list = this.src[this.startPosition]
     }
 
     ngAfterViewInit() {
